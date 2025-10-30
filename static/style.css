@@ -1,0 +1,330 @@
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; /* System fonts */
+    background-color: #f8f9fa; /* Lighter background */
+    margin: 0;
+    padding: 20px;
+    color: #343a40; /* Darker text */
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased; /* Smoother fonts on WebKit */
+    -moz-osx-font-smoothing: grayscale; /* Smoother fonts on Firefox */
+}
+
+/* Main container */
+.container {
+    max-width: 900px;
+    margin: 20px auto; /* Added top/bottom margin */
+    background: #ffffff;
+    padding: 25px 40px; /* Increased padding */
+    border: 1px solid #dee2e6; /* Lighter border */
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* Softer shadow */
+}
+
+/* Main heading */
+h1 {
+    text-align: center;
+    color: #007bff; /* Primary blue */
+    margin-bottom: 30px;
+    font-weight: 600;
+    letter-spacing: -0.5px; /* Adjust letter spacing */
+}
+
+/* Form styling */
+form {
+    margin-bottom: 25px;
+}
+
+label {
+    display: block;
+    margin: 18px 0 6px; /* Adjusted spacing */
+    font-weight: 600;
+    color: #495057; /* Slightly darker label */
+}
+
+/* Input fields, select dropdowns, buttons */
+input[type="text"],
+input[type="number"],
+select,
+button {
+    padding: 12px 15px; /* Comfortable padding */
+    margin-bottom: 18px; /* Consistent spacing */
+    width: 100%;
+    max-width: 500px; /* Consistent max-width */
+    border: 1px solid #ced4da; /* Standard border */
+    border-radius: 5px; /* Slightly rounded */
+    box-sizing: border-box;
+    font-size: 1rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease; /* Focus effect */
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+select:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+
+/* Hide spinner arrows on number inputs */
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Submit button styling */
+button[type="submit"] {
+    background-color: #007bff; /* Primary blue */
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+    display: block;
+    margin: 25px auto 0; /* Center button with top margin */
+    max-width: 280px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+button[type="submit"]:hover {
+    background-color: #0056b3; /* Darker blue on hover */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Results section */
+#results {
+    margin-top: 30px;
+    border-top: 1px solid #dee2e6; /* Separator */
+    padding-top: 20px;
+}
+#results h2 { /* Style the "Recommended Cards" heading */
+    text-align: center;
+    color: #343a40;
+    margin-bottom: 25px;
+    font-weight: 600;
+}
+
+
+/* Individual card styling */
+.card {
+    border: 1px solid #e9ecef; /* Light border */
+    padding: 20px 25px;
+    margin-bottom: 25px;
+    border-radius: 8px; /* Match container radius */
+    background: #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.2s ease; /* Hover effect */
+}
+.card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.card h3 {
+    margin: 0 0 8px;
+    color: #212529; /* Dark heading */
+    font-size: 1.4rem; /* Larger heading */
+    font-weight: 600;
+}
+
+.card .subline {
+    color: #6c757d; /* Gray text */
+    margin: 0 0 12px;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap; /* Allow wrapping */
+    gap: 5px 10px; /* Spacing for badge */
+}
+
+.card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    justify-content: space-between;
+    margin-bottom: 15px;
+    flex-wrap: wrap;
+}
+
+.card-image {
+    max-width: 140px; /* Slightly smaller image */
+    max-height: 90px;
+    object-fit: contain;
+    border-radius: 4px;
+    border: 1px solid #f1f3f5; /* Very light border */
+    margin-left: auto; /* Push image to right */
+    background-color: #fff; /* Ensure bg for transparent images */
+}
+
+/* Badge styling */
+.badge {
+    display: inline-block;
+    padding: 4px 12px; /* Adjusted padding */
+    font-size: 0.8rem; /* Smaller font */
+    border-radius: 12px;
+    font-weight: 700; /* Bolder */
+    line-height: 1.4;
+    text-transform: uppercase; /* Uppercase text */
+    letter-spacing: 0.5px;
+}
+
+.badge-normal { background-color: #e0f2f7; color: #0277bd; }
+.badge-gold { background-color: #fff8e1; color: #ff8f00; }
+.badge-platinum { background-color: #f3e5f5; color: #6a1b9a; }
+
+/* Checkbox block styling */
+.checkbox-block {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 8px 0;
+    cursor: pointer;
+    padding: 5px 0; /* Add padding for easier clicking */
+}
+.checkbox-block input[type="checkbox"] {
+    width: 1.1em; /* Slightly larger checkbox */
+    height: 1.1em;
+    margin: 0; /* Remove default margins */
+    cursor: pointer;
+    accent-color: #007bff; /* Match theme color */
+}
+.checkbox-block span {
+    flex-grow: 1; /* Allow text to take available space */
+}
+
+
+/* Key-Value table in details */
+.kv {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 15px 0;
+    font-size: 0.95rem;
+}
+
+.kv th, .kv td {
+    border: 1px solid #e9ecef; /* Match card border */
+    padding: 10px 12px; /* Consistent padding */
+    vertical-align: top;
+    text-align: left;
+}
+
+.kv th {
+    background: #f8f9fa; /* Match summary background */
+    width: 35%;
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Details/Summary styling */
+.details {
+    margin-top: 15px;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    background-color: #ffffff;
+}
+.details summary {
+    padding: 10px 15px; /* Consistent padding */
+    cursor: pointer;
+    font-weight: 600;
+    color: #007bff; /* Match theme color */
+    background-color: #f8f9fa;
+    border-radius: 3px 3px 0 0; /* Only top corners rounded */
+    list-style: none; /* Remove default marker */
+    position: relative; /* For custom marker */
+    transition: background-color 0.2s ease;
+}
+.details summary:hover {
+    background-color: #e9ecef;
+}
+.details summary::-webkit-details-marker,
+.details summary::marker { display: none; }
+
+/* Custom marker for details/summary */
+.details summary::after {
+    content: '▼';
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.8em;
+    color: #6c757d;
+    transition: transform 0.2s ease;
+}
+.details[open] summary::after {
+    transform: translateY(-50%) rotate(180deg);
+}
+
+
+.details[open] summary {
+    border-bottom: 1px solid #e9ecef;
+}
+
+/* Table inside details styling */
+.details table.kv { margin: 0; border: none; }
+.details table.kv th,
+.details table.kv td { border-left: none; border-right: none; }
+/* Remove bottom border from last row inside details */
+.details table.kv tr:last-child td,
+.details table.kv tr:last-child th { border-bottom: none; }
+
+/* Brand list styling */
+ul.brand-list {
+    list-style: none;
+    padding: 0;
+    margin: 5px 0 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+ul.brand-list li {
+    background: #e9ecef; /* Lighter background */
+    padding: 4px 12px; /* Adjusted padding */
+    border-radius: 12px;
+    font-size: 0.85rem; /* Smaller font */
+    color: #495057; /* Darker text */
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 600px) {
+    .container {
+        padding: 15px 20px; /* Reduce padding */
+        margin: 10px auto; /* Reduce margin */
+    }
+    .card-header {
+        flex-direction: column; /* Stack vertically */
+        align-items: flex-start;
+        gap: 10px; /* Reduce gap */
+    }
+    .card-image {
+        max-width: 100px; /* Smaller image */
+        max-height: 65px;
+        margin-left: 0;
+        margin-top: 10px;
+        align-self: center; /* Center image when stacked */
+    }
+    .kv th {
+        width: 45%; /* Increase header width */
+    }
+    /* Make form elements full width */
+    input[type="text"],
+    input[type="number"],
+    select,
+    button {
+        max-width: 100%;
+    }
+    button[type="submit"] {
+        max-width: 100%;
+    }
+    .acc-summary {
+        padding: 8px 10px; /* Reduce padding */
+    }
+    .acc-content {
+        padding: 8px 10px 10px; /* Reduce padding */
+    }
+}
+
