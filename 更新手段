@@ -1,0 +1,9 @@
+1. 変更をすべて選ぶ
+git add .
+
+2. 変更内容をメモ（" "の中は変える）
+git commit -m "ここに今回の変更内容を書く (例: バグ修正)"
+
+GitHubにアップロード
+git push origin master
+

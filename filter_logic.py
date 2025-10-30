@@ -62,8 +62,8 @@ def _has_bonus(text):
     else: # Empty string
          return False
 
-
-def filter_cards(amount=-1, min_rate=0.0, tiers=None, brands=None, features=None, e_money=None, wallets=None, campaign_has_bonus=False, keyword="", points=None, applicant_type=None, insurance=None):
+# ★★★ 関数の定義から min_rate=0.0 が削除されました ★★★
+def filter_cards(amount=-1, tiers=None, brands=None, features=None, e_money=None, wallets=None, campaign_has_bonus=False, keyword="", points=None, applicant_type=None, insurance=None):
     """ Filters the DataFrame of cards based on various user-selected criteria. """
     df = load_cards()
     if df.empty:
@@ -84,9 +84,7 @@ def filter_cards(amount=-1, min_rate=0.0, tiers=None, brands=None, features=None
             # Ensure comparison is done on stripped strings
             filtered = filtered[filtered["月々の推奨利用額"].astype(str).str.strip() == usage]
 
-    # Filter by cashback rate
-    if "還元率数値" in filtered.columns:
-        filtered = filtered[filtered["還元率数値"] >= float(min_rate)]
+    # ★★★ 還元率(min_rate)での絞り込みブロックが削除されました ★★★
 
     # Filter by card tiers
     if tiers:
@@ -179,4 +177,3 @@ def filter_cards(amount=-1, min_rate=0.0, tiers=None, brands=None, features=None
         filtered = filtered[filtered["入会特典ポイント"].apply(_has_bonus)]
 
     return filtered
-

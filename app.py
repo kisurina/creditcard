@@ -9,7 +9,19 @@ app = Flask(__name__)
 # CHECKBOX_GROUPS defines the filter options displayed on the webpage.
 CHECKBOX_GROUPS = {
     "tiers": {"title": "カード区分", "items": ["一般", "ゴールド", "プラチナ"]},
-    "brands": {"title": "国際ブランド（いずれか含む）", "items": ["VISA", "MasterCard", "JCB", "American Express", "Diners"]},
+    
+    # ★★★ ここが「ブランド説明（詳細版）」に差し替わっています ★★★
+    "brands": {
+        "title": "国際ブランド（いずれか含む）", 
+        "items": [
+            {"name": "VISA", "desc": "世界シェアNo.1の決済網。国内外問わず、実店舗でもオンラインでも「使えない場所がほぼない」圧倒的な安心感が強みです。"},
+            {"name": "MasterCard", "desc": "VISAに次ぐ世界No.2のシェア。特にヨーロッパ圏での決済に強く、日本ではコストコで使える国際ブランドとしても知られています。"},
+            {"name": "JCB", "desc": "日本発祥の唯一の国際ブランド。国内加盟店が非常に多く、ハワイやグアム、韓国など日本人観光客が多いエリアでの優待が手厚いのが特徴です。"},
+            {"name": "American Express", "desc": "高いステータスと信頼性が特徴。空港ラウンジ、手厚い旅行保険、コンシェルジュサービスなど、旅行やエンタメ関連の特典が群を抜いて充実しています。"},
+            {"name": "Diners", "desc": "Amexと並ぶ、あるいはそれ以上のステータスを持つ最上位ブランド。特に高級レストランでのコース料理1名分無料サービスなど、グルメ系の優待に圧倒的な強みを持っています。"}
+        ]
+    },
+    
     "points": {"title": "貯まるポイントで選ぶ（いずれか含む）", "items": ["Vポイント", "楽天ポイント", "Pontaポイント", "dポイント", "マイル"]},
     "applicant_type": {"title": "申込対象で選ぶ（いずれか含む）", "items": ["学生可", "20歳以上", "高校生を除く18歳以上"]},
     "insurance": {"title": "保険で選ぶ（すべて満たす）", "items": ["海外旅行保険あり", "国内旅行保険あり", "ショッピング保険あり"]},
@@ -35,7 +47,6 @@ def diagnose():
         amount = -1
 
     # Get other form values
-    rate = float(request.form.get("cashback", 0))
     keyword = request.form.get("keyword", "").strip()
 
     # Get all checkbox list values
@@ -54,7 +65,6 @@ def diagnose():
     # Call the filtering function with all user criteria
     filtered = filter_cards(
         amount=amount,
-        min_rate=rate,
         tiers=tiers,
         brands=brands,
         features=features,
@@ -80,4 +90,3 @@ def diagnose():
 
 if __name__ == "__main__":
     app.run(debug=True)
-

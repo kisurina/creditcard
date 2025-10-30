@@ -2,34 +2,86 @@ import os
 import pandas as pd
 
 def _score_row(row):
-    """ Calculates a score for a single card based on its features. """
-    # Safely get and convert cashback rate
+    """ カードの各特徴に基づき、100点満点で総合スコアを算出する """
+    total_score = 0
+
+    # --- 1. 還元率スコア (最大20点) ---
     try:
         cashback = float(row.get("還元率数値", 0) or 0)
+        # 1.5%以上で満点とする
+        cashback_score = min((cashback / 1.5) * 20, 20)
+        total_score += cashback_score
     except (ValueError, TypeError):
-        cashback = 0.0
-    cashback_score = min(cashback / 0.5, 5)
+        pass # エラーの場合は0点
 
-    # Score travel insurance presence
-    insurance = str(row.get("旅行保険_有無", "なし"))
-    insurance_score = 5 if "あり" in insurance else 1
-
-    # Score annual fee
+    # --- 2. 年会費スコア (最大20点) ---
     fee = str(row.get("年会費（税込）", ""))
     cond = str(row.get("年会費条件", ""))
-    if "無料" in fee and "初年度" not in fee: # Checks for permanent free fee
-        fee_score = 5
-    elif "条件" in cond or "初年度無料" in fee or "条件付" in fee: # Checks for conditional/first-year free
-        fee_score = 3
-    else: # Otherwise, assumes paid fee
-        fee_score = 1
+    if "永年無料" in fee or ("無料" in fee and "初年度" not in fee):
+        total_score += 20 # 永年無料
+    elif "条件" in cond or "初年度無料" in fee or "条件付" in fee:
+        total_score += 10 # 条件付き無料
+    else: # 有料
+        # 年会費を数値化して評価
+        try:
+            fee_val_str = "".join(filter(str.isdigit, fee.replace(",", "")))
+            fee_val = int(fee_val_str) if fee_val_str else 99999
+            if fee_val <= 2200:
+                total_score += 5 # 格安
+            else:
+                total_score += 1 # 一般有料
+        except ValueError:
+            total_score += 1 # パース失敗時は有料扱い
 
-    # Score number of international brands supported
+    # --- 3. 保険スコア (最大15点) ---
+    insurance_score = 0
+    if str(row.get("旅行保険_有無", "なし")) == "あり":
+        insurance_score += 5
+    if (row.get("海外旅行保険数値", 0) or 0) >= 3000:
+        insurance_score += 5 # 海外旅行保険が3000万円以上
+    if (row.get("ショッピング保険数値", 0) or 0) > 0:
+        insurance_score += 5 # ショッピング保険あり
+    total_score += insurance_score
+
+    # --- 4. 利便性スコア (最大15点) ---
+    convenience_score = 0
+    e_money = str(row.get("電子マネー対応", ""))
+    wallets = str(row.get("スマホ決済対応", ""))
+    # 対応数が多いほど高得点
+    convenience_score += e_money.count("iD") * 2
+    convenience_score += e_money.count("QUICPay") * 2
+    convenience_score += e_money.count("交通系") * 1
+    convenience_score += wallets.count("Apple Pay") * 3
+    convenience_score += wallets.count("Google Pay") * 3
+    total_score += min(convenience_score, 15) # 15点で頭打ち
+
+    # --- 5. 国際ブランドスコア (最大10点) ---
     brands = str(row.get("国際ブランド", "")).split("/")
-    brand_score = min(len([b for b in brands if b.strip()]), 5) # Count non-empty brands
+    brand_count = len([b for b in brands if b.strip()])
+    total_score += min(brand_count * 2.5, 10) # 1ブランド2.5点、最大10点
 
-    # Return the total score (max 20)
-    return cashback_score + insurance_score + fee_score + brand_score
+    # --- 6. 空港ラウンジスコア (最大10点) ---
+    lounge = str(row.get("空港ラウンジ", "なし"))
+    if "国内+海外" in lounge:
+        total_score += 10
+    elif "国内主要空港" in lounge:
+        total_score += 5
+    
+    # --- 7. ステータススコア (最大5点) ---
+    if str(row.get("コンシェルジュ", "なし")) == "あり":
+        total_score += 5
+
+    # --- 8. 先進性スコア (最大5点) ---
+    advanced_score = 0
+    if str(row.get("即時発行", "なし")) == "あり":
+        advanced_score += 2
+    if str(row.get("番号レスカード", "なし")) == "あり":
+        advanced_score += 3
+    total_score += advanced_score
+
+    # 最終スコアを返す (0〜100の範囲に収める)
+    return max(0, min(total_score, 100))
+
 
 def _fmt(x):
     """ Formats input to a clean string, handling None and 'nan'. """
@@ -89,7 +141,9 @@ def display_cards(df):
             </div>
             <img src="/static/images/{img}" class="card-image" alt="{_fmt(r.get('カード名'))}" loading="lazy">
           </div>
-          <p><strong>総合スコア：</strong>{score:.1f} / 20</p>
+          
+          <p><strong>総合スコア：</strong>{score:.0f} / 100</p>
+          
           <p><strong>国際ブランド：</strong></p>
           {brand_ul}
 
@@ -130,4 +184,3 @@ def display_cards(df):
         </div>
         """
     return html
-
