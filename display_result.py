@@ -81,7 +81,6 @@ def _calculate_base_score(row):
 
     return max(0, min(total_score, 100))
 
-# ★★★ ライフスタイルボーナスを計算する関数を新設 ★★★
 def _calculate_lifestyle_bonus(row, lifestyle_keywords, lifestyle_single):
     """ ユーザーのライフスタイル入力に基づき、ボーナス点（最大30点）を算出する """
     bonus_score = 0
@@ -150,7 +149,6 @@ def _generate_card_html(rank, index, r, base_score, bonus_score, total_score):
     if tier == "ゴールド": badge = "badge-gold"
     elif tier == "プラチナ": badge = "badge-platinum"
     
-    # ★★★ スコア表示ロジックを変更 ★★★
     score_html = f"<p><strong>総合スコア：</strong>{total_score:.0f} 点</p>"
     if bonus_score > 0:
         score_html += f"""
@@ -215,8 +213,6 @@ def _generate_card_html(rank, index, r, base_score, bonus_score, total_score):
     </div>
     """
 
-
-# ★★★ display_cards がライフスタイル引数を受け取るよう変更 ★★★
 def display_cards(df, is_fallback=False, lifestyle_keywords="", lifestyle_single=""):
     """ Generates HTML to display a list of recommended cards sorted by score. """
     
@@ -224,7 +220,6 @@ def display_cards(df, is_fallback=False, lifestyle_keywords="", lifestyle_single
         return "<p>エラー: カードデータ(cards.csv)の読み込みに失敗しました。</p>"
 
     try:
-        # ★★★ スコア計算ロジックを分離 ★★★
         rows_with_scores = []
         for index, row in df.iterrows():
             base_score = _calculate_base_score(row)
@@ -270,9 +265,11 @@ def display_cards(df, is_fallback=False, lifestyle_keywords="", lifestyle_single
                 html += _generate_card_html(rank, index, r, base, bonus, total)
 
     else:
-        # 通常の検索結果
-        html += "<h2 style='margin-bottom: 16px;'>おすすめカード</h2>"
-        for rank, (index, r, base, bonus, total) in enumerate(rows_with_scores, 1): 
+       
+        html += "<h2 style='margin-bottom: 16px;'>おすすめカード Top 10</h2>"
+       
+        for rank, (index, r, base, bonus, total) in enumerate(rows_with_scores[:10], 1): 
             html += _generate_card_html(rank, index, r, base, bonus, total)
+       
     
     return html
