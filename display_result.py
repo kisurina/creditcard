@@ -88,106 +88,129 @@ def _kv(label, value):
     v = _fmt(value)
     return f"<tr><th>{label}</th><td>{v}</td></tr>" if v else ""
 
-# ★★★ 関数の定義が変更されています ★★★
+def _generate_card_html(rank, index, r, score):
+    """ 単一のカードのHTMLブロックを生成する """
+    brands = [b.strip() for b in str(r.get("国際ブランド","")).split("/") if b.strip()]
+    brand_ul = "<ul class='brand-list'>" + "".join(f"<li>{b}</li>" for b in brands) + "</ul>" if brands else ""
+
+    img = _fmt(r.get("画像ファイル名","")) or "default.png"
+    img_path = os.path.join("static", "images", img)
+    if not os.path.isfile(img_path):
+        img = "default.png" 
+
+    tier = _fmt(r.get("カード区分","")) or "（区分未設定）"
+    badge = "badge-normal"
+    if tier == "ゴールド": badge = "badge-gold"
+    elif tier == "プラチナ": badge = "badge-platinum"
+
+    return f"""
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <h3>{rank}位：{_fmt(r.get('カード名'))}</h3>
+          <div class="subline">{_fmt(r.get('発行会社'))} | <span class="badge {badge}">{tier}</span></div>
+        </div>
+        <img src="/static/images/{img}" class="card-image" alt="{_fmt(r.get('カード名'))}" loading="lazy">
+      </div>
+      
+      <p><strong>総合スコア：</strong>{score:.0f} / 100</p>
+      
+      <p><strong>国際ブランド：</strong></p>
+      {brand_ul}
+
+      <details class="details">
+        <summary>詳細を開く</summary>
+        <table class="kv"><tbody>
+          {_kv("年会費（税込）", r.get("年会費（税込）"))}
+          {_kv("年会費条件", r.get("年会費条件"))}
+          {_kv("還元率_基本（%）", r.get("還元率_基本（%）"))}
+          {_kv("ボーナス還元率（%）", r.get("ボーナス還元率（%）"))}
+          {_kv("還元対象カテゴリ", r.get("還元対象カテゴリ"))}
+          {_kv("還元上限（月額）", r.get("還元上限（月額）"))}
+          {_kv("ポイントプログラム名", r.get("ポイントプログラム名"))}
+          {_kv("ポイント換算（円→P）", r.get("ポイント換算（円→P）"))}
+          {_kv("旅行保険_有無", r.get("旅行保険_有無"))}
+          {_kv("海外旅行保険_付帯種別", r.get("海外旅行保険_付帯種別"))}
+          {_kv("海外旅行保険_最高補償額（万円）", r.get("海外旅行保険_最高補償額（万円）"))}
+          {_kv("ショッピング保険_年間補償額（万円）", r.get("ショッピング保険_年間補償額（万円）"))}
+          {_kv("電子マネー対応", r.get("電子マネー対応"))}
+          {_kv("タッチ決済対応", r.get("タッチ決済対応"))}
+          {_kv("スマホ決済対応", r.get("スマホ決済対応"))}
+          {_kv("空港ラウンジ", r.get("空港ラウンジ"))}
+          {_kv("コンシェルジュ", r.get("コンシェルジュ"))}
+          {_kv("ETC_可否", r.get("ETC_可否"))}
+          {_kv("ETC_年会費", r.get("ETC_年会費"))}
+          {_kv("家族カード可否", r.get("家族カード可否"))}
+          {_kv("即時発行", r.get("即時発行"))}
+          {_kv("バーチャルカード対応", r.get("バーチャルカード対応"))}
+          {_kv("番号レスカード", r.get("番号レスカード"))}
+          {_kv("申込対象", r.get("申込対象"))}
+          {_kv("入会特典ポイント", r.get("入会特典ポイント"))}
+          {_kv("入会特典有効期限", r.get("公式キャンペーン"))}
+          {_kv("公式キャンペーン", r.get("公式キャンペーン"))}
+          {_kv("メリット", r.get("メリット"))}
+          {_kv("デメリット", r.get("デメリット"))}
+        </tbody></table>
+      </details>
+    </div>
+    """
+
+
 def display_cards(df, is_fallback=False):
     """ Generates HTML to display a list of recommended cards sorted by score. """
     
-    # ★★★ 「該当なし」のロジックが変更されています ★★★
     if df.empty:
-        # filter_logicでdfが空の場合、CSV読み込み自体に失敗している
         return "<p>エラー: カードデータ(cards.csv)の読み込みに失敗しました。</p>"
 
     try:
         rows = [(index, row, _score_row(row)) for index, row in df.iterrows()]
+        # 常にスコア順でソートしておく
         rows.sort(key=lambda t: t[2], reverse=True)
     except Exception as e:
         print(f"Error during scoring/sorting: {e}")
         return f"<p>結果の表示中にエラーが発生しました: {e}</p>"
 
-    html = "" # htmlを初期化
+    html = "" 
 
-    # ★★★ ここからが修正箇所 ★★★
-    # is_fallbackフラグに応じてメッセージと表示件数を変更
     if is_fallback:
         # 0件だった場合の「代替案メッセージ」
         html += """
         <div style='background-color: #fff8e1; border: 1px solid #ffecb3; padding: 15px; border-radius: 6px; margin-bottom: 20px;'>
-          <strong>ご指定の条件に合うカードが見つかりませんでした。</strong><br>
-          代わりに、総合スコアが高い「総合おすすめカード Top 5」を提案します。
+          <strong>該当したカードがありませんでした。</strong><br>
+          おすすめのカードはこちらです。
         </div>
         """
-        rows = rows[:5] # 表示件数を上位5件に絞る
-        html += "<h2 style='margin-bottom: 16px;'>総合おすすめカード Top 5</h2>"
+        
+        # 区分ごとに分類し、上位3件（またはそれ以下）を取得
+        platinum_cards = [t for t in rows if t[1].get("カード区分") == "プラチナ"][:3]
+        
+        # ★★★ ここが修正された行です (余計な T[ が削除されました) ★★★
+        gold_cards = [t for t in rows if t[1].get("カード区分") == "ゴールド"][:3]
+        
+        general_cards = [t for t in rows if t[1].get("カード区分") == "一般"][:3]
+
+        # --- プラチナカードの表示 ---
+        if platinum_cards:
+            html += "<h2 style='margin-bottom: 16px; border-bottom: 2px solid #aaa;'>おすすめのプラチナカード (Top 3)</h2>"
+            for rank, (index, r, score) in enumerate(platinum_cards, 1):
+                html += _generate_card_html(rank, index, r, score)
+        
+        # --- ゴールドカードの表示 ---
+        if gold_cards:
+            html += "<h2 style='margin-bottom: 16px; border-bottom: 2px solid #f0b400;'>おすすめのゴールドカード (Top 3)</h2>"
+            for rank, (index, r, score) in enumerate(gold_cards, 1):
+                html += _generate_card_html(rank, index, r, score)
+
+        # --- 一般カードの表示 ---
+        if general_cards:
+            html += "<h2 style='margin-bottom: 16px; border-bottom: 2px solid #007bff;'>おすすめの一般カード (Top 3)</h2>"
+            for rank, (index, r, score) in enumerate(general_cards, 1):
+                html += _generate_card_html(rank, index, r, score)
+
     else:
         # 通常の検索結果
         html += "<h2 style='margin-bottom: 16px;'>おすすめカード</h2>"
-    # ★★★ 修正箇所ここまで ★★★
-
-
-    # Iterate through sorted cards and generate HTML for each
-    for rank, (index, r, score) in enumerate(rows, 1): # Start ranking from 1
-        brands = [b.strip() for b in str(r.get("国際ブランド","")).split("/") if b.strip()]
-        brand_ul = "<ul class='brand-list'>" + "".join(f"<li>{b}</li>" for b in brands) + "</ul>" if brands else ""
-
-        img = _fmt(r.get("画像ファイル名","")) or "default.png"
-        img_path = os.path.join("static", "images", img)
-        if not os.path.isfile(img_path):
-            img = "default.png" 
-
-        tier = _fmt(r.get("カード区分","")) or "（区分未設定）"
-        badge = "badge-normal"
-        if tier == "ゴールド": badge = "badge-gold"
-        elif tier == "プラチナ": badge = "badge-platinum"
-
-        html += f"""
-        <div class="card">
-          <div class="card-header">
-            <div>
-              <h3>{rank}位：{_fmt(r.get('カード名'))}</h3>
-              <div class="subline">{_fmt(r.get('発行会社'))} | <span class="badge {badge}">{tier}</span></div>
-            </div>
-            <img src="/static/images/{img}" class="card-image" alt="{_fmt(r.get('カード名'))}" loading="lazy">
-          </div>
-          
-          <p><strong>総合スコア：</strong>{score:.0f} / 100</p>
-          
-          <p><strong>国際ブランド：</strong></p>
-          {brand_ul}
-
-          <details class="details">
-            <summary>詳細を開く</summary>
-            <table class="kv"><tbody>
-              {_kv("年会費（税込）", r.get("年会費（税込）"))}
-              {_kv("年会費条件", r.get("年会費条件"))}
-              {_kv("還元率_基本（%）", r.get("還元率_基本（%）"))}
-              {_kv("ボーナス還元率（%）", r.get("ボーナス還元率（%）"))}
-              {_kv("還元対象カテゴリ", r.get("還元対象カテゴリ"))}
-              {_kv("還元上限（月額）", r.get("還元上限（月額）"))}
-              {_kv("ポイントプログラム名", r.get("ポイントプログラム名"))}
-              {_kv("ポイント換算（円→P）", r.get("ポイント換算（円→P）"))}
-              {_kv("旅行保険_有無", r.get("旅行保険_有無"))}
-              {_kv("海外旅行保険_付帯種別", r.get("海外旅行保険_付帯種別"))}
-              {_kv("海外旅行保険_最高補償額（万円）", r.get("海外旅行保険_最高補償額（万円）"))}
-              {_kv("ショッピング保険_年間補償額（万円）", r.get("ショッピング保険_年間補償額（万円）"))}
-              {_kv("電子マネー対応", r.get("電子マネー対応"))}
-              {_kv("タッチ決済対応", r.get("タッチ決済対応"))}
-              {_kv("スマホ決済対応", r.get("スマホ決済対応"))}
-              {_kv("空港ラウンジ", r.get("空港ラウンジ"))}
-              {_kv("コンシェルジュ", r.get("コンシェルジュ"))}
-              {_kv("ETC_可否", r.get("ETC_可否"))}
-              {_kv("ETC_年会費", r.get("ETC_年会費"))}
-              {_kv("家族カード可否", r.get("家族カード可否"))}
-              {_kv("即時発行", r.get("即時発行"))}
-              {_kv("バーチャルカード対応", r.get("バーチャルカード対応"))}
-              {_kv("番号レスカード", r.get("番号レスカード"))}
-              {_kv("申込対象", r.get("申込対象"))}
-              {_kv("入会特典ポイント", r.get("入会特典ポイント"))}
-              {_kv("入会特典有効期限", r.get("公式キャンペーン"))}
-              {_kv("公式キャンペーン", r.get("公式キャンペーン"))}
-              {_kv("メリット", r.get("メリット"))}
-              {_kv("デメリット", r.get("デメリット"))}
-            </tbody></table>
-          </details>
-        </div>
-        """
+        for rank, (index, r, score) in enumerate(rows, 1): # Start ranking from 1
+            html += _generate_card_html(rank, index, r, score)
+    
     return html
