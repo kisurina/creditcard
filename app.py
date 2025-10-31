@@ -8,9 +8,20 @@ app = Flask(__name__)
 
 # CHECKBOX_GROUPS defines the filter options displayed on the webpage.
 CHECKBOX_GROUPS = {
-    "tiers": {"title": "カード区分", "items": ["一般", "ゴールド", "プラチナ"]},
+    # ★★★ 「よく利用するお店(複数可)」が削除されました ★★★
+
+    "lifestyle_single": {
+        "title": "【ライフスタイル診断】主な交通手段は？ (いずれか一つ)",
+        "items": [
+            "電車 (Suica / PASMOなど)",
+            "飛行機 (マイルを貯めたい)",
+            "自動車 (ETC / ガソリン)"
+        ]
+    },
+
+    "tiers": {"title": "【カードスペック】カード区分", "items": ["一般", "ゴールド", "プラチナ"]},
     "brands": {
-        "title": "国際ブランド（いずれか含む）", 
+        "title": "【カードスペック】国際ブランド（いずれか含む）", 
         "items": [
             {"name": "VISA", "desc": "世界シェアNo.1の決済網。国内外問わず、実店舗でもオンラインでも「使えない場所がほぼない」圧倒的な安心感が強みです。"},
             {"name": "MasterCard", "desc": "VISAに次ぐ世界No.2のシェア。特にヨーロッパ圏での決済に強く、日本ではコストコで使える国際ブランドとしても知られています。"},
@@ -19,13 +30,13 @@ CHECKBOX_GROUPS = {
             {"name": "Diners", "desc": "Amexと並ぶ、あるいはそれ以上のステータスを持つ最上位ブランド。特に高級レストランでのコース料理1名分無料サービスなど、グルメ系の優待に圧倒的な強みを持っています。"}
         ]
     },
-    "points": {"title": "貯まるポイントで選ぶ（いずれか含む）", "items": ["Vポイント", "楽天ポイント", "Pontaポイント", "dポイント", "マイル"]},
-    "applicant_type": {"title": "申込対象で選ぶ（いずれか含む）", "items": ["学生可", "20歳以上", "高校生を除く18歳以上"]},
-    "insurance": {"title": "保険で選ぶ（すべて満たす）", "items": ["海外旅行保険あり", "国内旅行保険あり", "ショッピング保険あり"]},
-    "e_money": {"title": "電子マネー（すべて対応）", "items": ["iD", "QUICPay", "交通系", "WAON", "楽天Edy"]},
-    "wallets": {"title": "スマホウォレット（すべて対応）", "items": ["Apple Pay", "Google Pay", "おサイフケータイ"]},
-    "features": {"title": "欲しい機能（すべて満たす）", "items": ["年会費無料", "空港ラウンジ", "コンシェルジュ", "タッチ決済", "ETC無料", "家族カード", "即時発行", "バーチャルカード", "番号レス"]},
-    "campaigns": {"title": "キャンペーン条件", "items": ["入会特典あり"]}
+    "points": {"title": "【カードスペック】貯まるポイントで選ぶ（いずれか含む）", "items": ["Vポイント", "楽天ポイント", "Pontaポイント", "dポイント", "マイル"]},
+    "applicant_type": {"title": "【カードスペック】申込対象で選ぶ（いずれか含む）", "items": ["学生可", "20歳以上", "高校生を除く18歳以上"]},
+    "insurance": {"title": "【カードスペック】保険で選ぶ（すべて満たす）", "items": ["海外旅行保険あり", "国内旅行保険あり", "ショッピング保険あり"]},
+    "e_money": {"title": "【カードスペック】電子マネー（すべて対応）", "items": ["iD", "QUICPay", "交通系", "WAON", "楽天Edy"]},
+    "wallets": {"title": "【カードスペック】スマホウォレット（すべて対応）", "items": ["Apple Pay", "Google Pay", "おサイフケータイ"]},
+    "features": {"title": "【カードスペック】欲しい機能（すべて満たす）", "items": ["年会費無料", "空港ラウンジ", "コンシェルジュ", "タッチ決済", "ETC無料", "家族カード", "即時発行", "バーチャルカード", "番号レス"]},
+    "campaigns": {"title": "【カードスペック】キャンペーン条件", "items": ["入会特典あり"]}
 }
 
 @app.route("/")
@@ -36,17 +47,14 @@ def index():
 @app.route("/diagnose", methods=["POST"])
 def diagnose():
     """ Handles the form submission and displays card results. """
-    # Handle optional amount input. If empty, set to -1 as a flag.
     amount_str = request.form.get("amount")
     if amount_str and amount_str.isdigit():
         amount = int(amount_str)
     else:
         amount = -1
 
-    # Get other form values
     keyword = request.form.get("keyword", "").strip()
 
-    # Get all checkbox list values
     tiers = request.form.getlist("tiers")
     brands = request.form.getlist("brands")
     e_money = request.form.getlist("e_money")
@@ -57,10 +65,13 @@ def diagnose():
     applicant_type = request.form.getlist("applicant_type")
     insurance = request.form.getlist("insurance")
 
+    # ★★★ ここがキーワード入力に変更されました ★★★
+    lifestyle_keywords = request.form.get("lifestyle_keywords", "").strip()
+    lifestyle_single = request.form.get("lifestyle_single", "") 
+
     campaign_has_bonus = "入会特典あり" in campaigns
 
-    # ★★★ ここからが修正箇所 ★★★
-    # Call the filtering function which now returns two values
+    # フィルター関数を呼び出し
     filtered_df, is_fallback = filter_cards(
         amount=amount,
         tiers=tiers,
@@ -75,9 +86,13 @@ def diagnose():
         insurance=insurance
     )
     
-    # Generate HTML for the results, passing the fallback flag
-    results_html = display_cards(filtered_df, is_fallback)
-    # ★★★ 修正箇所ここまで ★★★
+    # ★★★ display_cards にキーワードを渡すよう変更 ★★★
+    results_html = display_cards(
+        filtered_df, 
+        is_fallback,
+        lifestyle_keywords=lifestyle_keywords,
+        lifestyle_single=lifestyle_single
+    )
 
     # Render the page with the results
     return render_template(

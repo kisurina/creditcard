@@ -1,8 +1,10 @@
 import os
 import pandas as pd
+import re # キーワード検索のために re をインポート
 
-def _score_row(row):
-    """ カードの各特徴に基づき、100点満点で総合スコアを算出する """
+# 100点満点の「基本スコア」を計算する関数
+def _calculate_base_score(row):
+    """ カードの各特徴に基づき、100点満点で「基本スコア」を算出する """
     total_score = 0
 
     # --- 1. 還元率スコア (最大20点) ---
@@ -12,34 +14,34 @@ def _score_row(row):
         cashback_score = min((cashback / 2.0) * 20, 20)
         total_score += cashback_score
     except (ValueError, TypeError):
-        pass # エラーの場合は0点
+        pass 
 
     # --- 2. 年会費スコア (最大20点) ---
     fee = str(row.get("年会費（税込）", ""))
     cond = str(row.get("年会費条件", ""))
     if "永年無料" in fee or ("無料" in fee and "初年度" not in fee):
-        total_score += 20 # 永年無料
+        total_score += 20 
     elif "条件" in cond or "初年度無料" in fee or "条件付" in fee:
-        total_score += 10 # 条件付き無料
-    else: # 有料
+        total_score += 10 
+    else: 
         try:
             fee_val_str = "".join(filter(str.isdigit, fee.replace(",", "")))
             fee_val = int(fee_val_str) if fee_val_str else 99999
             if fee_val <= 2200:
-                total_score += 5 # 格安
+                total_score += 5 
             else:
-                total_score += 1 # 一般有料
+                total_score += 1 
         except ValueError:
-            total_score += 1 # パース失敗時は有料扱い
+            total_score += 1 
 
     # --- 3. 保険スコア (最大15点) ---
     insurance_score = 0
     if str(row.get("旅行保険_有無", "なし")) == "あり":
         insurance_score += 5
     if (row.get("海外旅行保険数値", 0) or 0) >= 3000:
-        insurance_score += 5 # 海外旅行保険が3000万円以上
+        insurance_score += 5 
     if (row.get("ショッピング保険数値", 0) or 0) > 0:
-        insurance_score += 5 # ショッピング保険あり
+        insurance_score += 5 
     total_score += insurance_score
 
     # --- 4. 利便性スコア (最大15点) ---
@@ -51,12 +53,12 @@ def _score_row(row):
     convenience_score += e_money.count("交通系") * 1
     convenience_score += wallets.count("Apple Pay") * 3
     convenience_score += wallets.count("Google Pay") * 3
-    total_score += min(convenience_score, 15) # 15点で頭打ち
+    total_score += min(convenience_score, 15) 
 
     # --- 5. 国際ブランドスコア (最大10点) ---
     brands = str(row.get("国際ブランド", "")).split("/")
     brand_count = len([b for b in brands if b.strip()])
-    total_score += min(brand_count * 2.5, 10) # 1ブランド2.5点、最大10点
+    total_score += min(brand_count * 2.5, 10) 
 
     # --- 6. 空港ラウンジスコア (最大10点) ---
     lounge = str(row.get("空港ラウンジ", "なし"))
@@ -79,6 +81,51 @@ def _score_row(row):
 
     return max(0, min(total_score, 100))
 
+# ★★★ ライフスタイルボーナスを計算する関数を新設 ★★★
+def _calculate_lifestyle_bonus(row, lifestyle_keywords, lifestyle_single):
+    """ ユーザーのライフスタイル入力に基づき、ボーナス点（最大30点）を算出する """
+    bonus_score = 0
+    
+    # --- 1. キーワードボーナス (最大15点) ---
+    if lifestyle_keywords:
+        # 検索対象のテキストをカードデータから結合
+        search_text = " ".join([
+            str(row.get("カード名", "")),
+            str(row.get("メリット", "")),
+            str(row.get("還元対象カテゴリ", ""))
+        ]).lower() # 小文字に統一
+
+        # 入力されたキーワードをスペースで分割（全角スペースも考慮）
+        keywords = re.split(r'[\s　]+', lifestyle_keywords.lower())
+        
+        matched_keywords = 0
+        for keyword in keywords:
+            if keyword and keyword in search_text:
+                matched_keywords += 1
+        
+        # 1キーワードヒットにつき5点、最大15点
+        bonus_score += min(matched_keywords * 5, 15)
+
+    # --- 2. 交通手段ボーナス (最大15点) ---
+    if lifestyle_single:
+        card_text = " ".join([
+            str(row.get("カード名", "")),
+            str(row.get("メリット", "")),
+            str(row.get("還元対象カテゴリ", ""))
+        ]).lower()
+
+        if "電車" in lifestyle_single:
+            if "suica" in card_text or "pasmo" in card_text or "交通系" in card_text or "オートチャージ" in card_text:
+                bonus_score += 15
+        elif "飛行機" in lifestyle_single:
+            if "マイル" in card_text or "jal" in card_text or "ana" in card_text:
+                bonus_score += 15
+        elif "自動車" in lifestyle_single:
+            if "etc" in card_text or "ガソリン" in card_text or "出光" in card_text or "eneos" in card_text:
+                bonus_score += 15
+                
+    return bonus_score
+
 
 def _fmt(x):
     s = "" if x is None else str(x).strip()
@@ -88,8 +135,8 @@ def _kv(label, value):
     v = _fmt(value)
     return f"<tr><th>{label}</th><td>{v}</td></tr>" if v else ""
 
-def _generate_card_html(rank, index, r, score):
-    """ 単一のカードのHTMLブロックを生成する """
+def _generate_card_html(rank, index, r, base_score, bonus_score, total_score):
+    """ 単一のカードのHTMLブロックを生成する (スコア引数を追加) """
     brands = [b.strip() for b in str(r.get("国際ブランド","")).split("/") if b.strip()]
     brand_ul = "<ul class='brand-list'>" + "".join(f"<li>{b}</li>" for b in brands) + "</ul>" if brands else ""
 
@@ -102,6 +149,21 @@ def _generate_card_html(rank, index, r, score):
     badge = "badge-normal"
     if tier == "ゴールド": badge = "badge-gold"
     elif tier == "プラチナ": badge = "badge-platinum"
+    
+    # ★★★ スコア表示ロジックを変更 ★★★
+    score_html = f"<p><strong>総合スコア：</strong>{total_score:.0f} 点</p>"
+    if bonus_score > 0:
+        score_html += f"""
+        <p style="font-size: 0.9em; color: #007bff; margin-top: -8px;">
+          (基本スコア {base_score:.0f}点 + ライフスタイルボーナス +{bonus_score:.0f}点)
+        </p>
+        """
+    else:
+        score_html += f"""
+        <p style="font-size: 0.9em; color: #555; margin-top: -8px;">
+          (基本スコア {base_score:.0f}点)
+        </p>
+        """
 
     return f"""
     <div class="card">
@@ -113,9 +175,7 @@ def _generate_card_html(rank, index, r, score):
         <img src="/static/images/{img}" class="card-image" alt="{_fmt(r.get('カード名'))}" loading="lazy">
       </div>
       
-      <p><strong>総合スコア：</strong>{score:.0f} / 100</p>
-      
-      <p><strong>国際ブランド：</strong></p>
+      {score_html} <p><strong>国際ブランド：</strong></p>
       {brand_ul}
 
       <details class="details">
@@ -156,16 +216,25 @@ def _generate_card_html(rank, index, r, score):
     """
 
 
-def display_cards(df, is_fallback=False):
+# ★★★ display_cards がライフスタイル引数を受け取るよう変更 ★★★
+def display_cards(df, is_fallback=False, lifestyle_keywords="", lifestyle_single=""):
     """ Generates HTML to display a list of recommended cards sorted by score. """
     
     if df.empty:
         return "<p>エラー: カードデータ(cards.csv)の読み込みに失敗しました。</p>"
 
     try:
-        rows = [(index, row, _score_row(row)) for index, row in df.iterrows()]
-        # 常にスコア順でソートしておく
-        rows.sort(key=lambda t: t[2], reverse=True)
+        # ★★★ スコア計算ロジックを分離 ★★★
+        rows_with_scores = []
+        for index, row in df.iterrows():
+            base_score = _calculate_base_score(row)
+            bonus_score = _calculate_lifestyle_bonus(row, lifestyle_keywords, lifestyle_single)
+            total_score = base_score + bonus_score
+            rows_with_scores.append((index, row, base_score, bonus_score, total_score))
+
+        # 総合スコア(total_score)でソート
+        rows_with_scores.sort(key=lambda t: t[4], reverse=True) 
+        
     except Exception as e:
         print(f"Error during scoring/sorting: {e}")
         return f"<p>結果の表示中にエラーが発生しました: {e}</p>"
@@ -173,7 +242,6 @@ def display_cards(df, is_fallback=False):
     html = "" 
 
     if is_fallback:
-        # 0件だった場合の「代替案メッセージ」
         html += """
         <div style='background-color: #fff8e1; border: 1px solid #ffecb3; padding: 15px; border-radius: 6px; margin-bottom: 20px;'>
           <strong>該当したカードがありませんでした。</strong><br>
@@ -182,35 +250,29 @@ def display_cards(df, is_fallback=False):
         """
         
         # 区分ごとに分類し、上位3件（またはそれ以下）を取得
-        platinum_cards = [t for t in rows if t[1].get("カード区分") == "プラチナ"][:3]
-        
-        # ★★★ ここが修正された行です (余計な T[ が削除されました) ★★★
-        gold_cards = [t for t in rows if t[1].get("カード区分") == "ゴールド"][:3]
-        
-        general_cards = [t for t in rows if t[1].get("カード区分") == "一般"][:3]
+        platinum_cards = [t for t in rows_with_scores if t[1].get("カード区分") == "プラチナ"][:3]
+        gold_cards = [t for t in rows_with_scores if t[1].get("カード区分") == "ゴールド"][:3]
+        general_cards = [t for t in rows_with_scores if t[1].get("カード区分") == "一般"][:3]
 
-        # --- プラチナカードの表示 ---
         if platinum_cards:
             html += "<h2 style='margin-bottom: 16px; border-bottom: 2px solid #aaa;'>おすすめのプラチナカード (Top 3)</h2>"
-            for rank, (index, r, score) in enumerate(platinum_cards, 1):
-                html += _generate_card_html(rank, index, r, score)
+            for rank, (index, r, base, bonus, total) in enumerate(platinum_cards, 1):
+                html += _generate_card_html(rank, index, r, base, bonus, total)
         
-        # --- ゴールドカードの表示 ---
         if gold_cards:
             html += "<h2 style='margin-bottom: 16px; border-bottom: 2px solid #f0b400;'>おすすめのゴールドカード (Top 3)</h2>"
-            for rank, (index, r, score) in enumerate(gold_cards, 1):
-                html += _generate_card_html(rank, index, r, score)
+            for rank, (index, r, base, bonus, total) in enumerate(gold_cards, 1):
+                html += _generate_card_html(rank, index, r, base, bonus, total)
 
-        # --- 一般カードの表示 ---
         if general_cards:
             html += "<h2 style='margin-bottom: 16px; border-bottom: 2px solid #007bff;'>おすすめの一般カード (Top 3)</h2>"
-            for rank, (index, r, score) in enumerate(general_cards, 1):
-                html += _generate_card_html(rank, index, r, score)
+            for rank, (index, r, base, bonus, total) in enumerate(general_cards, 1):
+                html += _generate_card_html(rank, index, r, base, bonus, total)
 
     else:
         # 通常の検索結果
         html += "<h2 style='margin-bottom: 16px;'>おすすめカード</h2>"
-        for rank, (index, r, score) in enumerate(rows, 1): # Start ranking from 1
-            html += _generate_card_html(rank, index, r, score)
+        for rank, (index, r, base, bonus, total) in enumerate(rows_with_scores, 1): 
+            html += _generate_card_html(rank, index, r, base, bonus, total)
     
     return html
