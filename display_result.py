@@ -8,8 +8,8 @@ def _score_row(row):
     # --- 1. 還元率スコア (最大20点) ---
     try:
         cashback = float(row.get("還元率数値", 0) or 0)
-        # 1.5%以上で満点とする
-        cashback_score = min((cashback / 1.5) * 20, 20)
+        # 2.0%以上で満点とする
+        cashback_score = min((cashback / 2.0) * 20, 20)
         total_score += cashback_score
     except (ValueError, TypeError):
         pass # エラーの場合は0点
@@ -22,7 +22,6 @@ def _score_row(row):
     elif "条件" in cond or "初年度無料" in fee or "条件付" in fee:
         total_score += 10 # 条件付き無料
     else: # 有料
-        # 年会費を数値化して評価
         try:
             fee_val_str = "".join(filter(str.isdigit, fee.replace(",", "")))
             fee_val = int(fee_val_str) if fee_val_str else 99999
@@ -47,7 +46,6 @@ def _score_row(row):
     convenience_score = 0
     e_money = str(row.get("電子マネー対応", ""))
     wallets = str(row.get("スマホ決済対応", ""))
-    # 対応数が多いほど高得点
     convenience_score += e_money.count("iD") * 2
     convenience_score += e_money.count("QUICPay") * 2
     convenience_score += e_money.count("交通系") * 1
@@ -79,59 +77,68 @@ def _score_row(row):
         advanced_score += 3
     total_score += advanced_score
 
-    # 最終スコアを返す (0〜100の範囲に収める)
     return max(0, min(total_score, 100))
 
 
 def _fmt(x):
-    """ Formats input to a clean string, handling None and 'nan'. """
     s = "" if x is None else str(x).strip()
-    # Return empty string if the lowercased string is 'nan'
     return "" if s.lower() == "nan" else s
 
 def _kv(label, value):
-    """ Creates a table row (<tr>) for a key-value pair if the value is not empty. """
     v = _fmt(value)
-    # Only return the table row HTML if the formatted value is not empty
     return f"<tr><th>{label}</th><td>{v}</td></tr>" if v else ""
 
-def display_cards(df):
+# ★★★ 関数の定義が変更されています ★★★
+def display_cards(df, is_fallback=False):
     """ Generates HTML to display a list of recommended cards sorted by score. """
+    
+    # ★★★ 「該当なし」のロジックが変更されています ★★★
     if df.empty:
-        return "<p>該当するカードが見つかりませんでした。</p>"
+        # filter_logicでdfが空の場合、CSV読み込み自体に失敗している
+        return "<p>エラー: カードデータ(cards.csv)の読み込みに失敗しました。</p>"
 
-    # Calculate scores for each card
-    # Use try-except to handle potential errors during scoring
     try:
         rows = [(index, row, _score_row(row)) for index, row in df.iterrows()]
-        # Sort cards by score (descending)
         rows.sort(key=lambda t: t[2], reverse=True)
     except Exception as e:
         print(f"Error during scoring/sorting: {e}")
         return f"<p>結果の表示中にエラーが発生しました: {e}</p>"
 
+    html = "" # htmlを初期化
 
-    html = "<h2 style='margin-bottom: 16px;'>おすすめカード</h2>"
+    # ★★★ ここからが修正箇所 ★★★
+    # is_fallbackフラグに応じてメッセージと表示件数を変更
+    if is_fallback:
+        # 0件だった場合の「代替案メッセージ」
+        html += """
+        <div style='background-color: #fff8e1; border: 1px solid #ffecb3; padding: 15px; border-radius: 6px; margin-bottom: 20px;'>
+          <strong>ご指定の条件に合うカードが見つかりませんでした。</strong><br>
+          代わりに、総合スコアが高い「総合おすすめカード Top 5」を提案します。
+        </div>
+        """
+        rows = rows[:5] # 表示件数を上位5件に絞る
+        html += "<h2 style='margin-bottom: 16px;'>総合おすすめカード Top 5</h2>"
+    else:
+        # 通常の検索結果
+        html += "<h2 style='margin-bottom: 16px;'>おすすめカード</h2>"
+    # ★★★ 修正箇所ここまで ★★★
+
+
     # Iterate through sorted cards and generate HTML for each
     for rank, (index, r, score) in enumerate(rows, 1): # Start ranking from 1
-        # Create an unordered list (ul) for brands
         brands = [b.strip() for b in str(r.get("国際ブランド","")).split("/") if b.strip()]
         brand_ul = "<ul class='brand-list'>" + "".join(f"<li>{b}</li>" for b in brands) + "</ul>" if brands else ""
 
-        # Determine image file, default to 'default.png' if specified image not found
         img = _fmt(r.get("画像ファイル名","")) or "default.png"
         img_path = os.path.join("static", "images", img)
         if not os.path.isfile(img_path):
-            img = "default.png" # Fallback to default image
-            # Consider logging a warning: print(f"Warning: Image file not found: {img_path}")
+            img = "default.png" 
 
-        # Determine card tier and corresponding badge class
         tier = _fmt(r.get("カード区分","")) or "（区分未設定）"
         badge = "badge-normal"
         if tier == "ゴールド": badge = "badge-gold"
         elif tier == "プラチナ": badge = "badge-platinum"
 
-        # Construct the HTML block for the card
         html += f"""
         <div class="card">
           <div class="card-header">
@@ -175,7 +182,7 @@ def display_cards(df):
               {_kv("番号レスカード", r.get("番号レスカード"))}
               {_kv("申込対象", r.get("申込対象"))}
               {_kv("入会特典ポイント", r.get("入会特典ポイント"))}
-              {_kv("入会特典有効期限", r.get("入会特典有効期限"))}
+              {_kv("入会特典有効期限", r.get("公式キャンペーン"))}
               {_kv("公式キャンペーン", r.get("公式キャンペーン"))}
               {_kv("メリット", r.get("メリット"))}
               {_kv("デメリット", r.get("デメリット"))}

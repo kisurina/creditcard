@@ -62,16 +62,23 @@ def _has_bonus(text):
     else: # Empty string
          return False
 
-# ★★★ 関数の定義から min_rate=0.0 が削除されました ★★★
 def filter_cards(amount=-1, tiers=None, brands=None, features=None, e_money=None, wallets=None, campaign_has_bonus=False, keyword="", points=None, applicant_type=None, insurance=None):
-    """ Filters the DataFrame of cards based on various user-selected criteria. """
+    """ 
+    Filters the DataFrame of cards based on various user-selected criteria.
+    
+    Returns:
+        tuple: (DataFrame, is_fallback)
+               - (filtered_df, False) if results are found.
+               - (original_df, True) if no results are found (fallback).
+    """
     df = load_cards()
     if df.empty:
-        return df
+        return df, False # Return empty DF and no fallback
 
     filtered = df.copy()
 
     # --- Apply Filters Sequentially ---
+    # (...中略...)
 
     # Filter by monthly usage amount (skipped if amount is -1)
     if amount != -1:
@@ -79,12 +86,8 @@ def filter_cards(amount=-1, tiers=None, brands=None, features=None, e_money=None
         elif amount <= 30000: usage = "1万円～3万円"
         elif amount <= 50000: usage = "3万円～5万円"
         else: usage = "5万円～"
-        # Filter only if the column exists and has relevant data
         if "月々の推奨利用額" in filtered.columns and filtered["月々の推奨利用額"].notna().any():
-            # Ensure comparison is done on stripped strings
             filtered = filtered[filtered["月々の推奨利用額"].astype(str).str.strip() == usage]
-
-    # ★★★ 還元率(min_rate)での絞り込みブロックが削除されました ★★★
 
     # Filter by card tiers
     if tiers:
@@ -92,7 +95,6 @@ def filter_cards(amount=-1, tiers=None, brands=None, features=None, e_money=None
 
     # Filter by brands (OR logic)
     if brands:
-        # Fill NaN with empty string before applying string methods
         filtered = filtered[filtered["国際ブランド"].fillna("").astype(str).apply(lambda s: any(b in s for b in brands))]
 
     # Filter by e-money (AND logic)
@@ -108,13 +110,11 @@ def filter_cards(amount=-1, tiers=None, brands=None, features=None, e_money=None
         point_masks = []
         for p in points:
             keyword_to_search = "マイル" if "マイル" in p else p.replace("ポイント", "")
-            # Check in both 'ポイントプログラム名' and 'メリット' columns
             mask = (
                 filtered["ポイントプログラム名"].fillna("").str.contains(keyword_to_search, case=False, regex=False) |
                 filtered["メリット"].fillna("").str.contains(keyword_to_search, case=False, regex=False)
             )
             point_masks.append(mask)
-        # Combine masks with OR logic if multiple points are selected
         if point_masks:
             combined_mask = pd.concat(point_masks, axis=1).any(axis=1)
             filtered = filtered[combined_mask]
@@ -129,18 +129,15 @@ def filter_cards(amount=-1, tiers=None, brands=None, features=None, e_money=None
             if ins == "海外旅行保険あり":
                 filtered = filtered[filtered["海外旅行保険数値"] > 0]
             elif ins == "国内旅行保険あり":
-                # Check if travel insurance exists AND mentions "国内" (domestic)
                 mask1 = filtered["旅行保険_有無"].fillna("").str.contains("あり")
                 mask2 = filtered["メリット"].fillna("").str.contains("国内") | filtered["デメリット"].fillna("").str.contains("国内")
-                # More robust check if a specific domestic insurance column exists could be added
-                filtered = filtered[mask1 & mask2] # Apply both conditions
+                filtered = filtered[mask1 & mask2]
             elif ins == "ショッピング保険あり":
                 filtered = filtered[filtered["ショッピング保険数値"] > 0]
 
     # Keyword Search (searches only card name and issuer)
     if keyword:
         search_cols = ["カード名", "発行会社"]
-        # Create mask based on keyword presence in specified columns (case-insensitive)
         mask = filtered[search_cols].fillna("").astype(str).apply(
             lambda x: x.str.lower().str.contains(keyword.lower(), na=False, regex=False)
         ).any(axis=1)
@@ -150,16 +147,13 @@ def filter_cards(amount=-1, tiers=None, brands=None, features=None, e_money=None
     feat_list = features or []
     if feat_list:
         for f in feat_list:
-            # Check column existence before applying filter
             if f == "年会費無料" and "年会費（税込）" in filtered.columns:
                 filtered = filtered[filtered["年会費（税込）"].fillna("").str.contains("無料")]
             elif f == "空港ラウンジ" and "空港ラウンジ" in filtered.columns:
-                # Exclude empty strings and 'なし'
                 filtered = filtered[filtered["空港ラウンジ"].fillna("").str.strip().ne("") & filtered["空港ラウンジ"].fillna("").str.strip().ne("なし")]
             elif f == "コンシェルジュ" and "コンシェルジュ" in filtered.columns:
                 filtered = filtered[filtered["コンシェルジュ"].fillna("").str.contains("あり")]
             elif f == "タッチ決済" and "タッチ決済対応" in filtered.columns:
-                # Exclude empty, 'nan', and 'なし'
                 filtered = filtered[filtered["タッチ決済対応"].fillna("").str.strip().ne("") & filtered["タッチ決済対応"].fillna("").str.lower().ne("nan") & filtered["タッチ決済対応"].fillna("").str.strip().ne("なし")]
             elif f == "ETC無料" and "ETC_年会費" in filtered.columns:
                 filtered = filtered[filtered["ETC_年会費"].fillna("").str.contains("無料")]
@@ -175,5 +169,11 @@ def filter_cards(amount=-1, tiers=None, brands=None, features=None, e_money=None
     # Filter by campaign bonus presence
     if campaign_has_bonus and "入会特典ポイント" in filtered.columns:
         filtered = filtered[filtered["入会特典ポイント"].apply(_has_bonus)]
+    
 
-    return filtered
+    if filtered.empty:
+       
+        return df, True
+    else:
+        
+        return filtered, False

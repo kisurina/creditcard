@@ -9,8 +9,6 @@ app = Flask(__name__)
 # CHECKBOX_GROUPS defines the filter options displayed on the webpage.
 CHECKBOX_GROUPS = {
     "tiers": {"title": "カード区分", "items": ["一般", "ゴールド", "プラチナ"]},
-    
-    # ★★★ ここが「ブランド説明（詳細版）」に差し替わっています ★★★
     "brands": {
         "title": "国際ブランド（いずれか含む）", 
         "items": [
@@ -21,7 +19,6 @@ CHECKBOX_GROUPS = {
             {"name": "Diners", "desc": "Amexと並ぶ、あるいはそれ以上のステータスを持つ最上位ブランド。特に高級レストランでのコース料理1名分無料サービスなど、グルメ系の優待に圧倒的な強みを持っています。"}
         ]
     },
-    
     "points": {"title": "貯まるポイントで選ぶ（いずれか含む）", "items": ["Vポイント", "楽天ポイント", "Pontaポイント", "dポイント", "マイル"]},
     "applicant_type": {"title": "申込対象で選ぶ（いずれか含む）", "items": ["学生可", "20歳以上", "高校生を除く18歳以上"]},
     "insurance": {"title": "保険で選ぶ（すべて満たす）", "items": ["海外旅行保険あり", "国内旅行保険あり", "ショッピング保険あり"]},
@@ -62,8 +59,9 @@ def diagnose():
 
     campaign_has_bonus = "入会特典あり" in campaigns
 
-    # Call the filtering function with all user criteria
-    filtered = filter_cards(
+    # ★★★ ここからが修正箇所 ★★★
+    # Call the filtering function which now returns two values
+    filtered_df, is_fallback = filter_cards(
         amount=amount,
         tiers=tiers,
         brands=brands,
@@ -77,8 +75,9 @@ def diagnose():
         insurance=insurance
     )
     
-    # Generate HTML for the results
-    results_html = display_cards(filtered)
+    # Generate HTML for the results, passing the fallback flag
+    results_html = display_cards(filtered_df, is_fallback)
+    # ★★★ 修正箇所ここまで ★★★
 
     # Render the page with the results
     return render_template(
